@@ -1,0 +1,100 @@
+---
+
+- hosts: webservers
+  become: yes
+  vars_files:
+   - vars.yml
+
+  tasks:
+    - name: "****--> (1) updating apt cache and repository"
+      become: yes
+      apt: 
+        update_cache: yes # apt-get update
+        force_apt_get: yes # use apt-get
+        cache_valid_time: 86400
+
+    - name: "****--> (2) upgrading apt packages"
+      become: yes
+      apt: 
+        upgrade: dist 
+        force_apt_get: yes
+
+    - name: "****--> (3) updating node js package"
+      shell: 
+      args:
+        cmd: "curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -"
+
+    - name: "****--> (4) installing node js"
+      apt:
+        name: nodejs #14.8.1 
+        state: present
+
+    # # we don't want the application to be installed in the remote user path.
+    # - name: "****--> (5) cloning the application"
+    #   shell:
+    #   args:
+    #     cmd: "git clone {{ git_repository }}"
+    #     chdir: "/home/"
+
+    - name: "****--> (6) updating application's .env with host, db and okta variables"
+      copy:
+        dest: "../bootcamp-app/.env"
+        content: |
+              #Host Configuration
+              PORT=8080
+              #HOST=34.91.200.208
+              HOST=0.0.0.0
+
+              # Postgres configuration
+              PGHOST={{ db_host }}
+              PGUSERNAME={{ db_user }}
+              PGDATABASE={{ db_instance }}
+              PGPASSWORD={{ db_password }}
+              PGPORT={{ db_port }}
+
+              # After OKTA user creation and Web application creation
+              HOST_URL={{ application_host_url }}
+              COOKIE_ENCRYPT_PWD={{ cookie_encrypt_pwd }}!
+              NODE_ENV=development
+
+              # Okta configuration
+              OKTA_ORG_URL={{ okta_org_url }}
+              OKTA_CLIENT_ID={{ okta_client_id }}
+              OKTA_CLIENT_SECRET={{ okta_client_secret }}
+
+    - name: "****--> (7) installing application dependencies"
+      become: yes
+      shell:
+      args:
+        cmd: "npm install"
+        chdir: "/home/bootcamp-app/"
+
+    - name: "****--> (8) initializing postgres db"
+      command: 
+      args:
+        cmd: 'npm run initdb'
+        chdir: '/home/bootcamp-app/'
+      run_once: true
+
+    - name: "****--> (9) installing PM2 with npm"
+      become: yes
+      command: 
+      args:
+        cmd: "npm install pm2 -g"
+        chdir: /home/bootcamp-app/
+
+    - name: "****--> (10) running the web application"
+      command: 'pm2 start "npm run dev" --name WTApp'
+      args:
+        chdir: '/home/bootcamp-app/'
+
+    - name: "****--> (11) automating pm2 for reboot with systemd"
+      become: yes
+      command:
+      args:
+        cmd: pm2 startup
+
+    - name: "****--> (12) saving pm2 state"
+      command:
+      args:
+        cmd: "pm2 save"
