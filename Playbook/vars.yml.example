@@ -16,3 +16,6 @@ okta_client_id: 0oa1n3b02iZTwqfTc5d7
 okta_client_secret: bhAhpy6e4_D8194X3ZYBegk1jAcK7AMlF7CpvT0L
 
 git_repository: https://TomerMagera@bitbucket.org/TomerMagera/bootcamp-app.git
+
+artifact_source_dir: ~/cicd_agent/_work/r1/a/_wtapp-artifact
+artifact_name: WTApp.tar.gz

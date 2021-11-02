@@ -29,12 +29,12 @@
         name: nodejs #14.8.1 
         state: present
 
-    # # we don't want the application to be installed in the remote user path.
-    # - name: "****--> (5) cloning the application"
-    #   shell:
-    #   args:
-    #     cmd: "git clone {{ git_repository }}"
-    #     chdir: "/home/"
+    # copy WTApp zipped artifact which includes all it's dependencies
+    # to the managed nodes
+    - name: "****--> copy WTApp zipped artifact to managed node"
+      copy: 
+        src: "{{ artifact_source_dir }}/{{ artifact_name }}"
+        dest: /home/bootcamp-app/
 
     - name: "****--> (6) updating application's .env with host, db and okta variables"
       copy:
@@ -62,12 +62,12 @@
               OKTA_CLIENT_ID={{ okta_client_id }}
               OKTA_CLIENT_SECRET={{ okta_client_secret }}
 
-    - name: "****--> (7) installing application dependencies"
-      become: yes
-      shell:
-      args:
-        cmd: "npm install"
-        chdir: "/home/bootcamp-app/"
+    # - name: "****--> (7) installing application dependencies"
+    #   become: yes
+    #   shell:
+    #   args:
+    #     cmd: "npm install"
+    #     chdir: "/home/bootcamp-app/"
 
     - name: "****--> (8) initializing postgres db"
       command: 
