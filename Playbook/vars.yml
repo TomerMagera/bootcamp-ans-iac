@@ -1,0 +1,19 @@
+
+# Postgres configuration
+db_host:  
+db_user: 
+db_password: 
+db_instance: 
+db_port: 
+
+# After OKTA user creation and Web application creation
+application_host_url: 
+cookie_encrypt_pwd: 
+
+# Okta configuration
+okta_org_url: 
+okta_client_id: 
+okta_client_secret: 
+
+artifact_source_dir: 
+artifact_name: 
