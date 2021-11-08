@@ -17,3 +17,4 @@ okta_client_secret:
 
 artifact_source_dir: 
 artifact_name: 
+hosts_group: 
