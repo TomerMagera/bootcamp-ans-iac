@@ -1,44 +1,62 @@
 ---
 
-- hosts: {{ hosts_group }}
-  become: yes
+- name: "******** Weight Tracker Application Deployment *******"
+  hosts: '{{ hosts_group }}'
   vars_files:
-   - {{ vars_file }}
+   - '{{ vars_file }}'
 
   tasks:
-    - name: "****--> (1) updating apt cache and repository"
+    - name: "****--> (1) delete the application's directory"
+      ansible.builtin.file:
+        state: absent
+        path: /home/{{ ansible_user_id }}/bootcamp-app
+
+    # create folder for the app
+    - name: "****--> (2) create the application's directory"
+      ansible.builtin.file:
+        path: /home/{{ ansible_user_id }}/bootcamp-app
+        state: directory
+        mode: '0755'
+
+    - name: "****--> (3) updating apt cache and repository"
       become: yes
       apt: 
         update_cache: yes # apt-get update
         force_apt_get: yes # use apt-get
         cache_valid_time: 86400
 
-    - name: "****--> (2) upgrading apt packages"
+    - name: "****--> (4) upgrading apt packages"
       become: yes
       apt: 
         upgrade: dist 
         force_apt_get: yes
 
-    - name: "****--> (3) updating node js package"
+    - name: "****--> (5) updating node js package"
       shell: 
       args:
         cmd: "curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -"
 
-    - name: "****--> (4) installing node js"
+    - name: "****--> (6) installing node js"
+      become: yes
       apt:
         name: nodejs #14.8.1 
         state: present
 
     # copy WTApp zipped artifact which includes all it's dependencies
     # to the managed nodes
-    - name: "****--> copy WTApp zipped artifact to managed node"
+    - name: "****--> (7) copy WTApp zipped artifact to managed node"
       copy: 
-        src: "{{ artifact_source_dir }}/{{ artifact_name }}"
-        dest: /home/bootcamp-app/
+        src: "{{ artifact_source_dir }}/"
+        dest: /home/{{ ansible_user_id }}/bootcamp-app/
 
-    - name: "****--> (6) updating application's .env with host, db and okta variables"
+    - name: "****--> (8) unzip the artifact"
+      shell: "tar xvfz {{ artifact_name }}"
+      args:
+        chdir: /home/{{ ansible_user_id }}/bootcamp-app/
+
+    - name: "****--> (9) updating application's .env with host, db and okta variables"
       copy:
-        dest: "../bootcamp-app/.env"
+        dest: /home/{{ ansible_user_id }}/bootcamp-app/.env
         content: |
               #Host Configuration
               PORT=8080
@@ -62,39 +80,37 @@
               OKTA_CLIENT_ID={{ okta_client_id }}
               OKTA_CLIENT_SECRET={{ okta_client_secret }}
 
-    # - name: "****--> (7) installing application dependencies"
-    #   become: yes
-    #   shell:
+    # - name: "****--> (8) initializing postgres db"
+    #   command: 
     #   args:
-    #     cmd: "npm install"
-    #     chdir: "/home/bootcamp-app/"
+    #     cmd: 'npm run initdb'
+    #     chdir: '/home/bootcamp-app/'
+    #   run_once: true
 
-    - name: "****--> (8) initializing postgres db"
-      command: 
+    - name: remove service if present
+      command: 'pm2 delete WTApp'
       args:
-        cmd: 'npm run initdb'
-        chdir: '/home/bootcamp-app/'
-      run_once: true
-
+        chdir: /home/{{ ansible_user_id }}/bootcamp-app/
+      ignore_errors: True 
+      
     - name: "****--> (9) installing PM2 with npm"
       become: yes
-      command: 
+      command: "npm install pm2 -g"
       args:
-        cmd: "npm install pm2 -g"
-        chdir: /home/bootcamp-app/
+        chdir: /home/{{ ansible_user_id }}/bootcamp-app/
 
     - name: "****--> (10) running the web application"
       command: 'pm2 start "npm run dev" --name WTApp'
       args:
-        chdir: '/home/bootcamp-app/'
+        chdir: '/home/{{ ansible_user_id }}/bootcamp-app/'
 
-    - name: "****--> (11) automating pm2 for reboot with systemd"
+    - name: "****--> (11) automating pm2 for reboot with systemd" 
       become: yes
-      command:
-      args:
-        cmd: pm2 startup
+      command: 'pm2 startup systemd -u {{ ansible_user_id }} --hp /home/{{ ansible_user_id }}'
+      environment:
+        PATH: "{{ ansible_env.PATH }}"
+      ignore_errors: True
 
     - name: "****--> (12) saving pm2 state"
-      command:
-      args:
-        cmd: "pm2 save"
+      command: pm2 save
+
