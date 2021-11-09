@@ -1,4 +1,4 @@
-
+# These are the variable needed for the app to launch and execute properly
 # Postgres configuration
 db_host:  
 db_user: 
